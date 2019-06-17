@@ -45,7 +45,9 @@
     <Compile Include="BaseVisitors\CollectNamespaces.cs" />
     <Compile Include="BaseVisitors\HasStatementVisitor.cs" />
     <Compile Include="BaseVisitors\SmallHelperVisitors.cs" />
+    <Compile Include="ClosureVisitors\CaptureVariablesVisitor.cs" />
     <Compile Include="ChangeWhileVisitor.cs" />
+    <Compile Include="ClosureVisitors\ClosureDesugarVisitor.cs" />
     <Compile Include="LightSymInfoVisitors\LightScopeHelperClasses.cs" />
     <Compile Include="LightSymInfoVisitors\SymInfoCollect1.cs" />
     <Compile Include="LightSymInfoVisitors\SymInfoCollect1Helper.cs" />

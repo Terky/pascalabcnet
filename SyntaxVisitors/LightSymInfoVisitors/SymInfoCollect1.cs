@@ -23,128 +23,281 @@ namespace PascalABCCompiler.SyntaxTree
     public partial class CollectLightSymInfoVisitor : BaseEnterExitVisitor
     {
         public ScopeSyntax Root;
-        /// <summary>
-        /// Текущее пространство имен
-        /// </summary>
         public ScopeSyntax Current;
+        private Dictionary<Type, EnterExitAction> EnterExitActions;
+
+        public CollectLightSymInfoVisitor()
+        {
+            EnterExitActions = new Dictionary<Type, EnterExitAction>();
+
+            EnterExitActions.Add(typeof(program_module), new EnterExitAction(st =>
+            {
+                ScopeSyntax t = new GlobalScopeSyntax(st.position(), st);
+                Root = t;
+                return t;
+            },
+                ExitScopeSyntax));
+
+            EnterExitActions.Add(typeof(unit_module),
+                EnterExitActions[typeof(program_module)]);
+
+            EnterExitActions.Add(typeof(implementation_node), new EnterExitAction(st =>
+            {
+                return new ImplementationScopeSyntax(st.position(), st);
+            }, ExitScopeSyntax));
+
+            EnterExitActions.Add(typeof(procedure_definition), new EnterExitAction(st =>
+            {
+                var ph = st as procedure_header
+                        ?? (st as procedure_definition)?.proc_header;
+                var name = ph?.name?.meth_name;
+                if (ph is constructor && name == null)
+                    name = "Create";
+                else if (ph.Parent is type_declaration tdecl)
+                    name = tdecl.type_name;
+                var attr = ph?.proc_attributes?.proc_attributes?.Exists(pa =>
+                        pa.attribute_type == proc_attribute.attr_override) ?? false ?
+                    Attributes.override_attr : 0;
+                if (ph.class_keyword)
+                    attr |= Attributes.class_attr;
+                if ((ph.Parent as class_members)?.access_mod?.access_level
+                        == access_modifer.public_modifer)
+                    attr |= Attributes.public_attr;
+                var sk = ph is function_header ?
+                    SymKind.funcname : SymKind.procname;
+                if (name != null)
+                    AddSymbol(name, sk, (ph as function_header)?.return_type, attr);
+
+                ScopeSyntax t;
+                if (st is procedure_definition pdef)
+                    t = new ProcScopeSyntax(name, st.position(), pdef,
+                        pdef?.proc_header.name?.class_name);
+                else
+                    t = null;
+
+                if (ph is function_header fh)
+                {
+                    var nres = new ident("Result");
+                    t.Symbols.Add(new SymInfoSyntax(nres, SymKind.var, nres.position(), fh.return_type));
+                }
+                if (st is procedure_definition pd)
+                {
+                    var ta = pd.proc_header?.template_args;
+                    var q = ta?.idents?.Select(x =>
+                        new SymInfoSyntax(x, SymKind.templatename, x.position()));
+                    if (q != null)
+                        t.Symbols.AddRange(q);
+                }
+                return t;
+            },
+                ExitScopeSyntax));
+
+            EnterExitActions.Add(typeof(procedure_header), new EnterExitAction(st =>
+            {
+                if (st.Parent is procedure_definition)
+                    return null;
+                return EnterExitActions[typeof(procedure_definition)].Enter(st);
+            }));
+            EnterExitActions.Add(typeof(enum_type_definition), new EnterExitAction(st =>
+            {
+                var edecl = st.Parent as type_declaration;
+                ident ename = edecl?.type_name;
+                AddSymbol(ename, SymKind.enumname, edecl?.type_def);
+                ScopeSyntax t = new EnumScopeSyntax(ename, st.position(), st);
+                foreach (var en in (st as enum_type_definition)?.enumerators?.enumerators)
+                {
+                    var nm = (en.name as named_type_reference)?.names[0];
+                    if (nm != null)
+                        t.Symbols.Add(new SymInfoSyntax(nm, SymKind.enumerator,
+                            nm.position()));
+                }
+                return t;
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(simple_property), new EnterExitAction(st =>
+            {
+                AddSymbol((st as simple_property).property_name?.name, SymKind.property);
+                return null;
+            }));
+            EnterExitActions.Add(typeof(simple_const_definition), new EnterExitAction(st =>
+            {
+                AddSymbol((st as simple_const_definition).const_name?.name, SymKind.constant);
+                return null;
+            }));
+            EnterExitActions.Add(typeof(typed_const_definition), new EnterExitAction(st =>
+            {
+                AddSymbol((st as typed_const_definition).const_name?.name, SymKind.constant);
+                return null;
+            }));
+            EnterExitActions.Add(typeof(statement_list), new EnterExitAction(st =>
+            {
+                return new StatListScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(for_node), new EnterExitAction(st =>
+            {
+                return new ForScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(if_node), new EnterExitAction(st =>
+            {
+                return new IfScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(foreach_stmt), new EnterExitAction(st =>
+            {
+                return new ForeachScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(while_node), new EnterExitAction(st =>
+            {
+                return new WhileScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(loop_stmt), new EnterExitAction(st =>
+            {
+                return new LoopScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(with_statement), new EnterExitAction(st =>
+            {
+                return new WithScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(lock_stmt), new EnterExitAction(st =>
+            {
+                return new LockScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(case_node), new EnterExitAction(st =>
+            {
+                return new CaseScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(class_definition), new EnterExitAction(st =>
+            {
+                ScopeSyntax t = null;
+                var cd = st as class_definition;
+                var td = cd.Parent as type_declaration;
+                var tname = td == null ? "NONAME" : td.type_name;
+                var sself = new SymInfoSyntax(new ident("Self"), SymKind.field,
+                    cd.position(), td.type_def);
+                if (cd.keyword == class_keyword.Class)
+                {
+                    AddSymbol(tname, SymKind.classname, td?.type_def);
+                    t = new ClassScopeSyntax(tname, td.position(), td);
+                    t.Symbols.Add(sself);
+                }
+                else if (cd.keyword == class_keyword.Record)
+                {
+                    AddSymbol(tname, SymKind.recordname, td?.type_def);
+                    t = new RecordScopeSyntax(tname, td.position(), td);
+                    t.Symbols.Add(sself);
+                }
+                else if (cd.keyword == class_keyword.Interface)
+                {
+                    AddSymbol(tname, SymKind.interfacename, td?.type_def);
+                    t = new InterfaceScopeSyntax(tname, td.position(), td);
+                    t.Symbols.Add(sself);
+                }
+
+                var ta = ((st.Parent as type_declaration)?.type_name as template_type_name)
+                    ?.template_args;
+                var q = ta?.idents?.Select(x =>
+                    new SymInfoSyntax(x, SymKind.templatename, x.position()));
+                if (q != null)
+                    t.Symbols.AddRange(q);
+
+                return t;
+            },
+                ExitScopeSyntax));
+            EnterExitActions.Add(typeof(type_declaration), new EnterExitAction(st =>
+            {
+                var tdecl = st as type_declaration;
+                if (tdecl.type_def is class_definition)
+                    return null;
+                ScopeSyntax t = new TypeSynonymScopeSyntax(tdecl.type_name, tdecl.position(), tdecl);
+                var q = (tdecl?.type_name as template_type_name)?.template_args
+                    ?.idents?.Select(x =>
+                        new SymInfoSyntax(x, SymKind.templatename, x.position()));
+                if (q != null)
+                    t.Symbols.AddRange(q);
+                AddSymbol(tdecl.type_name, SymKind.typesynonym, tdecl?.type_def);
+                return t;
+            },
+            st =>
+            {
+                if (!((st as type_declaration)?.type_def is class_definition))
+                    ExitScopeSyntax(st);
+            }));
+            EnterExitActions.Add(typeof(function_lambda_definition), new EnterExitAction(st =>
+            {
+                return new LambdaScopeSyntax(st.position(), st);
+            },
+                ExitScopeSyntax));
+        }
 
         public static CollectLightSymInfoVisitor New => new CollectLightSymInfoVisitor();
         public override void Enter(syntax_tree_node st)
         {
             ScopeSyntax t = null;
-            switch (st)
-            {
-                case program_module p:
-                case unit_module u:
-                    t = new GlobalScopeSyntax();
-                    Root = t;
-                    break;
-                case procedure_definition p:
-                    var name = p.proc_header?.name?.meth_name;
-                    if (name == null)
-                        name = "create";
-                    var attr = p.proc_header.class_keyword ? Attributes.class_attr : 0;
-                    if (name != null)
-                        if (p.proc_header is function_header)
-                            AddSymbol(name, SymKind.funcname,null, attr);
-                        else AddSymbol(name, SymKind.procname, null, attr);
-                    t = new ProcScopeSyntax(name);
-                    break;
-                //case formal_parameters p:// Это неправильный Scope - он закрывался при выходе из секции формальных параметров, что неправильно
-                //    t = new ParamsScopeSyntax();
-                //    break;
-                case statement_list p:
-                    t = new StatListScopeSyntax();
-                    break;
-                case for_node p:
-                    t = new ForScopeSyntax();
-                    break;
-                case foreach_stmt p:
-                    t = new ForeachScopeSyntax();
-                    break;
-                /*case repeat_node p: // не надо т.к. это StatListScope
-                    t = new RepeatScopeSyntax();
-                    break;*/
-                case case_node p:
-                    t = new CaseScopeSyntax();
-                    break;
-                case class_definition p:
-                    var td = p.Parent as type_declaration;
-                    var tname = td==null ? "NONAME" : td.type_name;
-                    if (p.keyword == class_keyword.Class)
-                    {
-                        AddSymbol(tname, SymKind.classname);
-                        t = new ClassScopeSyntax(tname);
-                    }                        
-                    else if (p.keyword == class_keyword.Record)
-                    {
-                        AddSymbol(tname, SymKind.recordname);
-                        t = new RecordScopeSyntax(tname);
-                    }                        
-                    else if (p.keyword == class_keyword.Interface)
-                    {
-                        AddSymbol(tname, SymKind.interfacename);
-                        t = new InterfaceScopeSyntax(tname);
-                    }                        
-                    break;
-                case function_lambda_definition p:
-                    t = new LambdaScopeSyntax();
-                    break;
-            }
+
+            Type typ = st.GetType();
+            if (EnterExitActions.ContainsKey(typ))
+                t = EnterExitActions[typ].Enter(st);
             if (t != null)
             {
                 t.Parent = Current;
                 if (Current != null)
                     Current.Children.Add(t);
                 Current = t;
-                if (st is procedure_definition p)
-                {
-                    if (p.proc_header is function_header fh)
-                    {
-                        AddSymbol(new ident("Result"), SymKind.var, fh.return_type);
-                    }
-                }
             }
         }
-        public virtual void PreExitScope(syntax_tree_node st)
-        {
 
-        }
         public override void Exit(syntax_tree_node st)
         {
-            switch (st)
-            {
-                case program_module p:
-                case procedure_definition pd:
-                //case formal_parameters fp:
-                case statement_list stl:
-                case for_node f:
-                case foreach_stmt fe:
-                case class_definition cd:
-                case record_type rt:
-                case function_lambda_definition fld:
-                //case repeat_node rep:
-                case case_node cas:
-                    PreExitScope(st);
-                    Current = Current.Parent;
-                    break;
-            }
+            Type typ = st.GetType();
+            if (EnterExitActions.ContainsKey(typ)
+                    && EnterExitActions[typ].Exit != null)
+                EnterExitActions[typ].Exit(st);
         }
+
         public override void visit(var_def_statement vd)
         {
             var attr = vd.var_attr == definition_attribute.Static ? Attributes.class_attr : 0;
+            if ((vd.Parent as class_members)?.access_mod?.access_level
+                    == access_modifer.public_modifer)
+                attr |= Attributes.public_attr;
             if (vd == null || vd.vars == null || vd.vars.list == null)
                 return;
-            AddSymbols(vd.vars.list, SymKind.var, vd.vars_type, attr);
+            var type = vd.vars_type;
+            var sk = Current is TypeScopeSyntax ? SymKind.field : SymKind.var;
+            var q = vd.vars.list.Select(x => new SymInfoSyntax(x, sk, x.position(), type, attr));
+            if (q.Count() > 0)
+                Current.Symbols.AddRange(q);
             base.visit(vd);
         }
+
         public override void visit(formal_parameters fp)
         {
             foreach (var pg in fp.params_list)
             {
-                AddSymbols(pg.idents.idents, SymKind.param, pg.vars_type);
+                var type = pg.vars_type;
+                var q = pg.idents.idents.Select(x => new SymInfoSyntax(x, SymKind.param, x.position(), type));
+                if (Current is ProcScopeSyntax || Current is LambdaScopeSyntax)
+                    Current.Symbols.AddRange(q);
             }
             base.visit(fp);
+        }
+
+        public override void visit(uses_list ul)
+        {
+            foreach (var u in ul.units)
+            {
+                var q = u.name.idents.Select(x => new SymInfoSyntax(x, SymKind.unitname, x.position()));
+                Current.Symbols.AddRange(q);
+            }
+            base.visit(ul);
         }
 
         public override void visit(for_node f)
@@ -152,6 +305,24 @@ namespace PascalABCCompiler.SyntaxTree
             if (f.create_loop_variable || f.type_name != null)
                 AddSymbol(f.loop_variable, SymKind.var, f.type_name);
             base.visit(f);
+        }
+
+        private class EnterExitAction
+        {
+            public Func<syntax_tree_node, ScopeSyntax> Enter;
+            public Action<syntax_tree_node> Exit;
+
+            public EnterExitAction(Func<syntax_tree_node, ScopeSyntax> Enter,
+                Action<syntax_tree_node> Exit = null)
+            {
+                this.Enter = Enter;
+                this.Exit = Exit;
+            }
+        }
+
+        private void ExitScopeSyntax(syntax_tree_node st)
+        {
+            Current = Current.Parent;
         }
     }
 }

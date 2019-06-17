@@ -10058,21 +10058,21 @@ namespace PascalABCCompiler.TreeConverter
             convertion_data_and_alghoritms.check_node_parser_error(_method_name.meth_name);
             location loc_name = get_location(_method_name.meth_name);
             context.extension_method = common_extension_meth;
-            if (LambdaHelper.IsLambdaName(_method_name.meth_name) && lambdaProcessingState != LambdaProcessingState.ClosuresProcessingVisitGeneratedClassesPhase)  //lroman//
-            {
-                if (lambdaProcessingState == LambdaProcessingState.None &&
-                    context.converting_block() == block_type.namespace_block)
-                {
-                    context.create_function(_method_name.meth_name.name, loc_name);
-                }
-                else
-                {
-                    var addSymbol = (lambdaProcessingState == LambdaProcessingState.TypeInferencePhase &&
-                                 LambdaHelper.IsAuxiliaryLambdaName(_method_name.meth_name)) || lambdaProcessingState == LambdaProcessingState.FinishPhase;
-                    context.create_lambda_function(_method_name.meth_name.name, loc_name, addSymbol, context.CurrentScope);
-                }
-            }
-            else
+            //if (LambdaHelper.IsLambdaName(_method_name.meth_name) && lambdaProcessingState != LambdaProcessingState.ClosuresProcessingVisitGeneratedClassesPhase)  //lroman//
+            //{
+            //    if (lambdaProcessingState == LambdaProcessingState.None &&
+            //        context.converting_block() == block_type.namespace_block)
+            //    {
+            //        context.create_function(_method_name.meth_name.name, loc_name);
+            //    }
+            //    else
+            //    {
+            //        var addSymbol = (lambdaProcessingState == LambdaProcessingState.TypeInferencePhase &&
+            //                     LambdaHelper.IsAuxiliaryLambdaName(_method_name.meth_name)) || lambdaProcessingState == LambdaProcessingState.FinishPhase;
+            //        context.create_lambda_function(_method_name.meth_name.name, loc_name, addSymbol, context.CurrentScope);
+            //    }
+            //}
+            //else
             {
                 if (current_function_header != null && current_function_header.proc_attributes != null && has_extensionmethod_attr(current_function_header.proc_attributes.proc_attributes))
                     context.create_function(_method_name.meth_name.name, loc_name, false);

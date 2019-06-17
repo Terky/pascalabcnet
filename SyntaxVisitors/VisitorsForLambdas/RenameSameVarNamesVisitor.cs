@@ -30,21 +30,21 @@ namespace PascalABCCompiler.SyntaxTreeConverters
         {
             get => new VarNamesInMethodsWithSameNameAsClassGenericParamsReplacer();
         }
-        public override void AddSymbol(ident name, SymKind kind, type_definition td = null, Attributes attr = 0)
-        {
-            if (name == null || name.name == null)
-            {
-                return;
-            }
-            var n = name.name.ToLower();
-            //if (LambdaNestedLevel > 0) // т.е. впервые встретилось переопределение именно в лямбде, тогда пропускать эту лямбду
-            //    return;
-            if (d.ContainsKey(n) && d[n] == null && (kind == SymKind.var || kind == SymKind.param)) // Добавляем не все, а только разыскиваемые и только если это - переменная
-            {
-                d[n] = this.Current;
-                base.AddSymbol(name, kind, td, attr);
-            }
-        }
+        //public override void AddSymbol(ident name, SymKind kind, type_definition td = null, Attributes attr = 0)
+        //{
+        //    if (name == null || name.name == null)
+        //    {
+        //        return;
+        //    }
+        //    var n = name.name.ToLower();
+        //    //if (LambdaNestedLevel > 0) // т.е. впервые встретилось переопределение именно в лямбде, тогда пропускать эту лямбду
+        //    //    return;
+        //    if (d.ContainsKey(n) && d[n] == null && (kind == SymKind.var || kind == SymKind.param)) // Добавляем не все, а только разыскиваемые и только если это - переменная
+        //    {
+        //        d[n] = this.Current;
+        //        base.AddSymbol(name, kind, td, attr);
+        //    }
+        //}
         public override void Enter(syntax_tree_node st)
         {
             base.Enter(st);
@@ -73,15 +73,15 @@ namespace PascalABCCompiler.SyntaxTreeConverters
                 }
             }
         }
-        public override void PreExitScope(syntax_tree_node st)
-        {
-            var l = d.Keys.Where(k => d[k] == Current).ToList();
-            // Обходим все словари и смотрим у них вершину стеков
-            foreach (var k in l)
-            {
-                d[k] = null; // т.е. в этом пространстве имен мы захватили одноименное описание переменной - освобождаем его
-            }
-        }
+        //public override void PreExitScope(syntax_tree_node st)
+        //{
+        //    var l = d.Keys.Where(k => d[k] == Current).ToList();
+        //    // Обходим все словари и смотрим у них вершину стеков
+        //    foreach (var k in l)
+        //    {
+        //        d[k] = null; // т.е. в этом пространстве имен мы захватили одноименное описание переменной - освобождаем его
+        //    }
+        //}
         public override void Exit(syntax_tree_node st)
         {
             if (st is function_lambda_definition)

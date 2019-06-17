@@ -7,6 +7,7 @@ using System.Text;
 using PascalABCCompiler.SyntaxTree;
 using SyntaxVisitors;
 using SyntaxVisitors.SugarVisitors;
+using SyntaxVisitors.ClosureVisitors;
 
 namespace PascalABCCompiler.SyntaxTreeConverters
 {
@@ -43,6 +44,8 @@ namespace PascalABCCompiler.SyntaxTreeConverters
 
             // double_question_desugar_visitor
             DoubleQuestionDesugarVisitor.New.ProcessNode(root);
+
+            (new ClosureDesugarVisitor(root)).ProcessNode(root);
 
             // Patterns
             // SingleDeconstructChecker.New.ProcessNode(root); // SSM 21.10.18 - пока разрешил множественные деконструкторы. Если будут проблемы - запретить

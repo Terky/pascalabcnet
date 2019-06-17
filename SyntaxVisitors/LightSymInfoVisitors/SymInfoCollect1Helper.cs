@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using PascalABCCompiler.Parsers;
 
 /*
     GlobalScopeSyntax
@@ -18,18 +19,11 @@ using System.Text;
 
 namespace PascalABCCompiler.SyntaxTree
 {
-    public partial class CollectLightSymInfoVisitor
+    public partial class CollectLightSymInfoVisitor : BaseEnterExitVisitor
     {
-        public virtual void AddSymbol(ident name, SymKind kind, type_definition td = null, Attributes attr = 0)
+        public void AddSymbol(ident name, SymKind kind, type_definition td = null, Attributes attr = 0)
         {
-            Current.Symbols.Add(new SymInfoSyntax(name, kind, td, attr));
-        }
-        public void AddSymbols(List<ident> names, SymKind kind, type_definition td = null, Attributes attr = 0)
-        {
-            foreach (var n in names)
-            {
-                AddSymbol(n, kind, td, attr);
-            }
+            Current.Symbols.Add(new SymInfoSyntax(name, kind, name.position(), td, attr));
         }
         public string Spaces(int n) => new string(' ', n);
         public void OutputString(string s) => System.IO.File.AppendAllText(fname, s);
@@ -51,9 +45,11 @@ namespace PascalABCCompiler.SyntaxTree
                 throw new Exception("ggggggggg");
             if (s is ParamsScopeSyntax)
             {
-                OutputString(s.ToString()+": ");
+                OutputString(s.ToString() + ": ");
                 if (s.Symbols.Count > 0)
                     OutputlnString(string.Join(", ", s.Symbols.Select(x => x.ToString())));
+                else
+                    OutputlnString();
             }
             else
             {
@@ -64,7 +60,44 @@ namespace PascalABCCompiler.SyntaxTree
             foreach (var sc in s.Children)
                 OutputElement(d + 2, sc);
         }
+    }
 
+    public static class GetPosition
+    {
+        public static Position position(this syntax_tree_node stn)
+        {
+            Position pos = new Position();
+            if (stn != null && stn.source_context != null)
+            {
+                pos.line = stn.source_context.begin_position.line_num;
+                pos.column = stn.source_context.begin_position.column_num;
+                pos.end_line = stn.source_context.end_position.line_num;
+                pos.end_column = stn.source_context.end_position.column_num;
+                pos.file_name = stn.source_context.FileName;
+            }
+            return pos;
+        }
+
+        public static int line(this syntax_tree_node stn) =>
+            stn?.source_context?.begin_position?.line_num ?? 0;
+
+        public static int end_line(this syntax_tree_node stn) =>
+            stn?.source_context?.end_position?.line_num ?? 0;
+
+        public static int column(this syntax_tree_node stn) =>
+            stn?.source_context?.begin_position?.column_num ?? 0;
+
+        public static int end_column(this syntax_tree_node stn) =>
+            stn?.source_context?.end_position?.column_num ?? 0;
+    }
+
+    public static class HashSetExt
+    {
+        public static void AddRange<TSource>
+            (this HashSet<TSource> source, IEnumerable<TSource> collection)
+        {
+            foreach (var e in collection)
+                source.Add(e);
+        }
     }
 }
-
